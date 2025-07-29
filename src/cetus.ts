@@ -94,3 +94,18 @@ export const getCetusPriceBySymbol = async (
 
   return priceInfo;
 };
+
+export const addLiquidity = async (poolId: string, amountA: number) => {
+  const pool = await sdk.Pool.getPool(poolId);
+  const decimalA = getDecimal(pool.coin_type_a);
+  const decimalB = getDecimal(pool.coin_type_b);
+  const sqrtPrice = TickMath.priceToSqrtPriceX64(
+    new Decimal(amountA),
+    decimalA,
+    decimalB
+  );
+
+  // sdk.Pool.addLiquidity(poolId, sqrtPrice);
+
+  return sqrtPrice;
+};
