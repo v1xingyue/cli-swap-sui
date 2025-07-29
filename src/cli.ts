@@ -27,8 +27,11 @@ program.version("1.0.0");
 program
   .command("info")
   .description("Get info")
-  .action(async () => {
-    log.info("Getting balance");
+  .option("-s, --silent", "silent output")
+  .action(async ({ silent }) => {
+    if (silent) {
+      log.level = "warn";
+    }
     const address = getAddress();
     log.info(`Address: ${address}`);
     const balances = await getBalance(address);
