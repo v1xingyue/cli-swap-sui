@@ -7,10 +7,19 @@ import {
   Path,
   Router,
 } from "@cetusprotocol/aggregator-sdk";
+import path from "path";
+
+export const getHomePath = () => {
+  return process.env.HOME || ".";
+};
+
+export const getKeysJsonFilePath = () => {
+  return path.join(getHomePath(), ".cli-swap-sui.keys.json");
+};
+
+const keysJsonFile = getKeysJsonFilePath();
 
 export const rpc = getFullnodeUrl("mainnet");
-
-const keysJsonFile = ".keys.json";
 
 interface Keys {
   address: string;
