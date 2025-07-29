@@ -1,9 +1,9 @@
 {
   "name": "cli-swap-sui",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "dist/cli.js",
   "bin": {
-    "cli-swap-sui": "src/cli.ts"
+    "cli-swap-sui": "dist/cli.js"
   },
   "scripts": {
     "dev": "ts-node-dev --transpile-only src/cli.ts",
