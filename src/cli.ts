@@ -7,16 +7,17 @@ import {
   getAddress,
   initKeypair,
   getAggregatorClient,
-  supportCoins,
   displayRouter,
   rpc,
   getSigner,
   transactionLink,
   getDecimal,
+  getCoinName,
 } from "./sdk";
 import { getCetusPrice, getCetusPriceBySymbol } from "./cetus";
 import log from "./log";
 import { SuiClient } from "@mysten/sui/client";
+import { POOL_MAPPING, supportCoins } from "./config";
 
 import BN from "bn.js";
 
@@ -24,20 +25,33 @@ const program = new commander.Command();
 program.version("1.0.0");
 
 program
-  .command("balance")
-  .description("Get balance")
+  .command("info")
+  .description("Get info")
   .action(async () => {
     log.info("Getting balance");
     const address = getAddress();
+    log.info(`Address: ${address}`);
     const balances = await getBalance(address);
     const balanceTable = [];
+
     for (const balance of balances) {
       const decimal = getDecimal(balance.coinType);
+      const coinName = getCoinName(balance.coinType);
+
+      let price = 1.0;
+      if (coinName !== "USDC") {
+        const priceInfo = await getCetusPriceBySymbol("USDC", coinName);
+        if (priceInfo) {
+          price = priceInfo.price.toNumber();
+        }
+      }
+
       if (decimal === -1) {
         balanceTable.push({
           coinType: balance.coinType,
           balance: balance.totalBalance,
           decimal: decimal,
+          price: price,
         });
         continue;
       } else {
@@ -45,6 +59,7 @@ program
           coinType: balance.coinType,
           balance: Number(balance.totalBalance) / 10 ** decimal,
           decimal: decimal,
+          price: price,
         });
       }
     }
@@ -132,7 +147,6 @@ program
   .option("-p, --pool <poolId>", "pool ID")
   .option("-f, --from <from>", "from coin symbol", "SUI")
   .option("-t, --to <to>", "to coin symbol", "USDC")
-
   .action(async ({ pool, from, to }) => {
     try {
       if (pool) {

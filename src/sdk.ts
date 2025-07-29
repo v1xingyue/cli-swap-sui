@@ -8,6 +8,12 @@ import {
   Router,
 } from "@cetusprotocol/aggregator-sdk";
 import path from "path";
+import { supportCoins, aggregatorURL } from "./config";
+
+interface Keys {
+  address: string;
+  privateKey: string;
+}
 
 export const getHomePath = () => {
   return process.env.HOME || ".";
@@ -68,33 +74,14 @@ export const initKeypair = async () => {
   fs.writeFileSync(keysJsonFile, JSON.stringify(j, null, 2));
 };
 
-interface CoinMetadata {
-  name: string;
-  packageAddress: string;
-  decimal: number;
-}
-
-export const supportCoins = new Map<string, CoinMetadata>([
-  ["SUI", { name: "SUI", packageAddress: "0x2::sui::SUI", decimal: 9 }],
-  [
-    "USDC",
-    {
-      name: "USDC",
-      packageAddress:
-        "0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC",
-      decimal: 6,
-    },
-  ],
-  [
-    "WAL",
-    {
-      name: "WAL",
-      packageAddress:
-        "0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59::wal::WAL",
-      decimal: 9,
-    },
-  ],
-]);
+export const getCoinName = (packageAddress: string): string => {
+  for (const coin of supportCoins.values()) {
+    if (coin.packageAddress === packageAddress) {
+      return coin.name;
+    }
+  }
+  return "";
+};
 
 export const getDecimal = (packageAddress: string): number => {
   for (const coin of supportCoins.values()) {
@@ -104,8 +91,6 @@ export const getDecimal = (packageAddress: string): number => {
   }
   return -1;
 };
-
-export const aggregatorURL = "https://api-sui.cetus.zone/router_v2/find_routes";
 
 export const getAggregatorClient = async (
   signer: string
