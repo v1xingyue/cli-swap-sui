@@ -34,6 +34,7 @@ program
     const balances = await getBalance(address);
     const balanceTable = [];
 
+    let usdcValue = 0;
     for (const balance of balances) {
       const decimal = getDecimal(balance.coinType);
       const coinName = getCoinName(balance.coinType);
@@ -46,23 +47,29 @@ program
         }
       }
 
-      if (decimal === -1) {
-        balanceTable.push({
-          coinType: balance.coinType,
-          balance: balance.totalBalance,
-          decimal: decimal,
-          price: price,
-        });
-        continue;
-      } else {
-        balanceTable.push({
-          coinType: balance.coinType,
-          balance: Number(balance.totalBalance) / 10 ** decimal,
-          decimal: decimal,
-          price: price,
-        });
+      let balanceLine = {
+        coinType: balance.coinType,
+        balance: Number(balance.totalBalance),
+        decimal: decimal,
+        price: price,
+        usdcValue: 0,
+      };
+
+      if (decimal !== -1) {
+        balanceLine.balance = Number(balance.totalBalance) / 10 ** decimal;
+        balanceLine.usdcValue =
+          (price * Number(balance.totalBalance)) / 10 ** decimal;
       }
+      balanceTable.push(balanceLine);
+      usdcValue += balanceLine.usdcValue;
     }
+    balanceTable.push({
+      coinType: "Total USDC",
+      balance: 0,
+      decimal: 0,
+      price: 1,
+      usdcValue: usdcValue,
+    });
     console.table(balanceTable);
   });
 
