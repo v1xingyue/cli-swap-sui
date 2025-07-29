@@ -1,0 +1,38 @@
+{
+  "name": "cli-swap-sui",
+  "version": "1.0.0",
+  "main": "dist/cli.js",
+  "bin": {
+    "cli-swap-sui": "src/cli.ts"
+  },
+  "scripts": {
+    "dev": "ts-node-dev --transpile-only src/cli.ts",
+    "build": "tsc",
+    "hello": "ts-node src/hello.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/bn.js": "^5.2.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^24.1.0",
+    "dotenv": "^17.2.1",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.3",
+    "pino-pretty": "^13.0.0"
+  },
+  "dependencies": {
+    "@cetusprotocol/aggregator-sdk": "^0.14.2",
+    "@mysten/sui": "^1.36.2",
+    "bn.js": "^5.2.2",
+    "commander": "^14.0.0",
+    "pino": "^9.7.0"
+  },
+  "files": [
+    "dist",
+    "src"
+  ]
+}
