@@ -61,7 +61,7 @@ program
   .command("swap")
   .description("swap tokens")
   .option("-v, --verbose", "verbose output")
-  .option("-a, --amount <amount>", "amount to buy", "0.1")
+  .option("-a, --amount <amount>", "amount to swap", "0.1")
   .option("-f, --from <from>", "from coin", "USDC")
   .option("-t, --to <to>", "to coin", "SUI")
   .option("-s, --slippage <slippage>", "slippage", "0.01")
@@ -84,7 +84,7 @@ program
     }
 
     const amountIn = new BN(amount * 10 ** fromCoin.decimal);
-    log.info(`You will buy ${amount} ${toCoin} with ${fromCoin}`);
+    log.info(`You will swap ${amount} ${fromCoin.name} to ${toCoin.name}`);
 
     try {
       const routers = await client.findRouters({
@@ -119,7 +119,7 @@ program
 
       const result = await client.signAndExecuteTransaction(txb, getSigner());
 
-      log.info("transaction", transactionLink(result.digest));
+      log.info("transaction %s ", transactionLink(result.digest));
     } catch (error) {
       log.error(error);
     }
