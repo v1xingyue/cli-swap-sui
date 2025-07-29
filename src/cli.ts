@@ -89,11 +89,15 @@ program
   .option("-v, --verbose", "verbose output")
   .option("-a, --amount <amount>", "amount to swap", "0.1")
   .option("-f, --from <from>", "from coin", "USDC")
-  .option("-t, --to <to>", "to coin", "SUI")
+  .option("-t, --to <to>", "to coin", "USDC")
   .option("-s, --slippage <slippage>", "slippage", "0.01")
   .action(async ({ amount, from, to, slippage, verbose }) => {
     if (verbose) {
       log.level = "debug";
+    }
+    if (from === to) {
+      log.error("from and to cannot be the same");
+      return;
     }
 
     from = from.toUpperCase();
