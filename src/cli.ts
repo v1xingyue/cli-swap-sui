@@ -14,6 +14,7 @@ import {
   transactionLink,
   getDecimal,
 } from "./sdk";
+import { getCetusPrice, getCetusPriceBySymbol } from "./cetus";
 import log from "./log";
 import { SuiClient } from "@mysten/sui/client";
 
@@ -120,6 +121,43 @@ program
       const result = await client.signAndExecuteTransaction(txb, getSigner());
 
       log.info("transaction %s ", transactionLink(result.digest));
+    } catch (error) {
+      log.error(error);
+    }
+  });
+
+program
+  .command("price")
+  .description("Get direct Cetus price")
+  .option("-p, --pool <poolId>", "pool ID")
+  .option("-f, --from <from>", "from coin symbol", "SUI")
+  .option("-t, --to <to>", "to coin symbol", "USDC")
+
+  .action(async ({ pool, from, to }) => {
+    try {
+      if (pool) {
+        // 直接通过池子ID获取价格
+        const priceInfo = await getCetusPrice(pool);
+        if (priceInfo) {
+          log.info("Pool Price Info:");
+          log.info(`Pool ID: ${priceInfo.poolId}`);
+          log.info(`Coin X Amount: ${priceInfo.coin_amount_a}`);
+          log.info(`Coin Y Amount: ${priceInfo.coin_amount_b}`);
+          log.info(`Price: ${priceInfo.price}`);
+          log.info(`1 ${to} = ${priceInfo.price} ${from}`);
+        } else {
+          log.error("Failed to get price for pool");
+        }
+      } else {
+        const priceInfo = await getCetusPriceBySymbol(from, to);
+        if (priceInfo) {
+          log.info(`Get price for ${from}/${to}:`);
+          log.info(`Price is: ${priceInfo.price}`);
+          log.info(`1 ${from} = ${priceInfo.price} ${to}`);
+        } else {
+          log.error(`Failed to get price for ${from}/${to}`);
+        }
+      }
     } catch (error) {
       log.error(error);
     }

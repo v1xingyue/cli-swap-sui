@@ -19,7 +19,12 @@ export const getKeysJsonFilePath = () => {
 
 const keysJsonFile = getKeysJsonFilePath();
 
-export const rpc = getFullnodeUrl("mainnet");
+type Network = "mainnet" | "testnet" | "devnet" | "localnet";
+
+export const network: Network = (process.env.NETWORK || "mainnet") as Network;
+
+// RPC URL based on network
+export const rpc = getFullnodeUrl(network);
 
 interface Keys {
   address: string;
@@ -32,10 +37,14 @@ export const getAddress = () => {
   return keys.address;
 };
 
-export const getBalance = async (address: string) => {
-  const client = new SuiClient({
+export const getSuiClient = () => {
+  return new SuiClient({
     url: rpc,
   });
+};
+
+export const getBalance = async (address: string) => {
+  const client = getSuiClient();
 
   const balances = await client.getAllBalances({
     owner: address,
@@ -76,6 +85,15 @@ export const supportCoins = new Map<string, CoinMetadata>([
       decimal: 6,
     },
   ],
+  [
+    "WAL",
+    {
+      name: "WAL",
+      packageAddress:
+        "0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59::wal::WAL",
+      decimal: 9,
+    },
+  ],
 ]);
 
 export const getDecimal = (packageAddress: string): number => {
@@ -94,14 +112,14 @@ export const getAggregatorClient = async (
 ): Promise<AggregatorClient> => {
   return new AggregatorClient({
     endpoint: aggregatorURL,
-    env: Env.Mainnet,
+    env: network === "mainnet" ? Env.Mainnet : Env.Testnet,
     signer: signer,
-    client: new SuiClient({ url: rpc }),
+    client: getSuiClient(),
   });
 };
 
 export const getCoinMetadata = async (coinType: string) => {
-  const client = new SuiClient({ url: rpc });
+  const client = getSuiClient();
   const coinMeta = await client.getCoinMetadata({
     coinType: coinType,
   });
