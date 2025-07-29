@@ -30,7 +30,7 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "@cetusprotocolaggregator/aggregator-sdk": "^0.14.2",
+    "@cetusprotocol/aggregator-sdk": "^0.14.2",
     "@mysten/sui": "^1.36.2",
     "bn.js": "^5.2.2",
     "commander": "^14.0.0",
