@@ -112,6 +112,7 @@ program
   .option("-s, --slippage <slippage>", "slippage", "0.01")
   .option("-e, --execute ", "execute the transaction", false)
   .option("-l, --loop <loop> ", "loop times", "1")
+  .option("-w, --wait <wait> ", "wait time as milliseconds", "1000")
   .action(
     async ({
       amount,
@@ -122,6 +123,7 @@ program
       execute,
       price,
       loop,
+      wait,
     }: {
       amount: number;
       from: string;
@@ -131,6 +133,7 @@ program
       execute: boolean;
       price: number;
       loop: number;
+      wait: number;
     }) => {
       if (verbose) {
         log.level = "debug";
@@ -211,7 +214,7 @@ program
               log.error(
                 "Limit Price is too high, please change the limit price or try again"
               );
-              await sleep(1000);
+              await sleep(wait);
               continue;
             }
           }
