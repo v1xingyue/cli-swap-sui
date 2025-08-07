@@ -110,6 +110,7 @@ program
   )
   .option("-s, --slippage <slippage>", "slippage", "0.01")
   .option("-e, --execute ", "execute the transaction", false)
+  .option("-l, --loop <loop> ", "loop times", 1)
   .action(
     async ({
       amount,
@@ -119,6 +120,7 @@ program
       verbose,
       execute,
       price,
+      loop,
     }: {
       amount: number;
       from: string;
@@ -127,6 +129,7 @@ program
       verbose: boolean;
       execute: boolean;
       price: number;
+      loop: number;
     }) => {
       if (verbose) {
         log.level = "debug";
@@ -152,96 +155,97 @@ program
       const amountIn = new BN(amount * 10 ** fromCoin.decimal);
       log.info(`You will swap ${amount} ${fromCoin.name} to ${toCoin.name}`);
 
-      try {
-        const routers = await client.findRouters({
-          from: fromCoin.packageAddress,
-          target: toCoin.packageAddress,
-          amount: amountIn,
-          byAmountIn: true,
-        });
+      for (let i = 0; i < loop; i++) {
+        try {
+          const routers = await client.findRouters({
+            from: fromCoin.packageAddress,
+            target: toCoin.packageAddress,
+            amount: amountIn,
+            byAmountIn: true,
+          });
 
-        if (!routers) {
-          log.error("No routers found");
-          return;
-        }
+          if (!routers) {
+            log.error("No routers found");
+            return;
+          }
 
-        console.table([
-          {
-            direction: "from",
-            coionName: fromCoin.name,
-            amountIn: routers.amountIn.toString(),
-            decimal: fromCoin.decimal,
-            floatAmount: routers.amountIn.toNumber() / 10 ** fromCoin.decimal,
-          },
-          {
-            direction: "to",
-            coionName: toCoin.name,
-            amountIn: routers.amountOut.toString(),
-            decimal: toCoin.decimal,
-            floatAmount: routers.amountOut.toNumber() / 10 ** toCoin.decimal,
-          },
-        ]);
+          console.table([
+            {
+              direction: "from",
+              coionName: fromCoin.name,
+              amountIn: routers.amountIn.toString(),
+              decimal: fromCoin.decimal,
+              floatAmount: routers.amountIn.toNumber() / 10 ** fromCoin.decimal,
+            },
+            {
+              direction: "to",
+              coionName: toCoin.name,
+              amountIn: routers.amountOut.toString(),
+              decimal: toCoin.decimal,
+              floatAmount: routers.amountOut.toNumber() / 10 ** toCoin.decimal,
+            },
+          ]);
 
-        if (price > 0) {
-          const expectAmountOut = Number(price * amount);
-          log.info(`expectAmountOut: ${expectAmountOut}`);
-          log.info(
-            `routers.amountOut: ${
-              routers.amountOut.toNumber() / 10 ** toCoin.decimal
-            }`
-          );
-          log.info(
-            `router.price: ${
-              routers.amountOut.toNumber() /
-              10 ** toCoin.decimal /
-              (routers.amountIn.toNumber() / 10 ** fromCoin.decimal)
-            }`
-          );
-          log.info(`expect price: ${price}`);
-          if (
-            expectAmountOut >
-            routers.amountOut.toNumber() / 10 ** toCoin.decimal
-          ) {
-            log.error(
-              "Limit Price is too high, please change the limit price or try again"
+          if (price > 0) {
+            const expectAmountOut = Number(price * amount);
+            log.info(`expectAmountOut: ${expectAmountOut}`);
+            log.info(
+              `routers.amountOut: ${
+                routers.amountOut.toNumber() / 10 ** toCoin.decimal
+              }`
             );
-            return;
+            log.info(
+              `router.price: ${
+                routers.amountOut.toNumber() /
+                10 ** toCoin.decimal /
+                (routers.amountIn.toNumber() / 10 ** fromCoin.decimal)
+              }`
+            );
+            log.info(`expect price: ${price}`);
+            log.info(`reverse price: ${1 / price}`);
+            if (
+              expectAmountOut >
+              routers.amountOut.toNumber() / 10 ** toCoin.decimal
+            ) {
+              log.error(
+                "Limit Price is too high, please change the limit price or try again"
+              );
+              continue;
+            }
           }
-        } else if (price < 0) {
-          const expectAmountIn = Number(price * amount * 10 ** toCoin.decimal);
-          if (expectAmountIn > routers.amountIn.toNumber()) {
-            log.error("Current Price is too low, please try again");
-            return;
+
+          for (const router of routers.routes) {
+            displayRouter(router);
           }
+
+          const txb = new Transaction();
+          await client.fastRouterSwap({
+            routers: routers.routes,
+            byAmountIn: true,
+            txb: txb,
+            slippage: slippage,
+          });
+
+          txb.setSender(address);
+          const bytes = await txb.build({
+            client: new SuiClient({ url: rpc }),
+          });
+          log.debug("transaction bytes", Buffer.from(bytes).toString("hex"));
+
+          if (execute) {
+            log.info("let's execute the transaction");
+            const result = await client.signAndExecuteTransaction(
+              txb,
+              getSigner()
+            );
+            log.info("transaction %s ", transactionLink(result.digest));
+          } else {
+            log.info("skip execute");
+          }
+          break;
+        } catch (error) {
+          log.error(error);
         }
-
-        for (const router of routers.routes) {
-          displayRouter(router);
-        }
-
-        const txb = new Transaction();
-        await client.fastRouterSwap({
-          routers: routers.routes,
-          byAmountIn: true,
-          txb: txb,
-          slippage: slippage,
-        });
-
-        txb.setSender(address);
-        const bytes = await txb.build({ client: new SuiClient({ url: rpc }) });
-        log.debug("transaction bytes", Buffer.from(bytes).toString("hex"));
-
-        if (execute) {
-          log.info("let's execute the transaction");
-          const result = await client.signAndExecuteTransaction(
-            txb,
-            getSigner()
-          );
-          log.info("transaction %s ", transactionLink(result.digest));
-        } else {
-        }
-      } catch (error) {
-        log.error(error);
       }
     }
   );
