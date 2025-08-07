@@ -82,7 +82,9 @@ export const getCetusPriceBySymbol = async (
   }
 
   if (!poolId) {
-    throw new Error(`Pool not found for ${fromSymbol}/${toSymbol}`);
+    throw new Error(
+      `Pool not found for ${fromSymbol}/${toSymbol} poolId: ${poolId} poolkey: ${poolKey}  fromSymbol: ${fromSymbol} toSymbol: ${toSymbol}`
+    );
   }
   const priceInfo = await getCetusPrice(poolId);
   if (priceInfo && isReversed) {
@@ -95,6 +97,14 @@ export const getCetusPriceBySymbol = async (
   return priceInfo;
 };
 
+export const getPositions = async () => {
+  const positions = await sdk.Pool.getPositionList(
+    "0x0000000000000000000000000000000000000000000000000000000000000000"
+  );
+  return positions;
+};
+
+// not done
 export const addLiquidity = async (poolId: string, amountA: number) => {
   const pool = await sdk.Pool.getPool(poolId);
   const decimalA = getDecimal(pool.coin_type_a);

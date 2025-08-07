@@ -14,11 +14,11 @@ import {
   getDecimal,
   getCoinName,
 } from "./sdk";
-import { getCetusPrice, getCetusPriceBySymbol } from "./cetus";
+import { getCetusPrice, getCetusPriceBySymbol, getPositions } from "./cetus";
 import log from "./log";
 import { SuiClient } from "@mysten/sui/client";
-import { POOL_MAPPING, supportCoins } from "./config";
-
+import { supportCoins } from "./config";
+import { ensureStoragePath } from "./storage";
 import BN from "bn.js";
 
 const program = new commander.Command();
@@ -39,11 +39,24 @@ program
 
     let usdcValue = 0;
     for (const balance of balances) {
+      log.debug("--------------------------------");
+      log.debug("balance", balance);
       const decimal = getDecimal(balance.coinType);
       const coinName = getCoinName(balance.coinType);
+      if (!coinName) {
+        balanceTable.push({
+          coinType: balance.coinType,
+          balance: Number(balance.totalBalance),
+          decimal: 0,
+          price: 0,
+          usdcValue: 0,
+        });
+        continue;
+      }
 
       let price = 1.0;
       if (coinName !== "USDC") {
+        log.debug("coinName", coinName);
         const priceInfo = await getCetusPriceBySymbol("USDC", coinName);
         if (priceInfo) {
           price = priceInfo.price.toNumber();
@@ -90,70 +103,148 @@ program
   .option("-a, --amount <amount>", "amount to swap", "0.1")
   .option("-f, --from <from>", "from coin", "USDC")
   .option("-t, --to <to>", "to coin", "USDC")
+  .option(
+    "-p, --price <price>",
+    "limit price for swap , if price > 0, it will check if the price is too high if price < 0, it will check if the price is too low",
+    "0"
+  )
   .option("-s, --slippage <slippage>", "slippage", "0.01")
-  .action(async ({ amount, from, to, slippage, verbose }) => {
-    if (verbose) {
-      log.level = "debug";
-    }
-    if (from === to) {
-      log.error("from and to cannot be the same");
-      return;
-    }
-
-    from = from.toUpperCase();
-    to = to.toUpperCase();
-
-    const address = getAddress();
-    const client = await getAggregatorClient(address);
-    const supoortCoins = supportCoins;
-    const fromCoin = supoortCoins.get(from);
-    const toCoin = supoortCoins.get(to);
-    if (!fromCoin || !toCoin) {
-      log.error("Invalid coin");
-      return;
-    }
-
-    const amountIn = new BN(amount * 10 ** fromCoin.decimal);
-    log.info(`You will swap ${amount} ${fromCoin.name} to ${toCoin.name}`);
-
-    try {
-      const routers = await client.findRouters({
-        from: fromCoin.packageAddress,
-        target: toCoin.packageAddress,
-        amount: amountIn,
-        byAmountIn: true,
-      });
-
-      if (!routers) {
-        log.error("No routers found");
+  .option("-e, --execute ", "execute the transaction", false)
+  .action(
+    async ({
+      amount,
+      from,
+      to,
+      slippage,
+      verbose,
+      execute,
+      price,
+    }: {
+      amount: number;
+      from: string;
+      to: string;
+      slippage: number;
+      verbose: boolean;
+      execute: boolean;
+      price: number;
+    }) => {
+      if (verbose) {
+        log.level = "debug";
+      }
+      if (from === to) {
+        log.error("from and to cannot be the same");
         return;
       }
 
-      for (const router of routers.routes) {
-        displayRouter(router);
+      from = from.toUpperCase();
+      to = to.toUpperCase();
+
+      const address = getAddress();
+      const client = await getAggregatorClient(address);
+      const supoortCoins = supportCoins;
+      const fromCoin = supoortCoins.get(from);
+      const toCoin = supoortCoins.get(to);
+      if (!fromCoin || !toCoin) {
+        log.error("Invalid coin");
+        return;
       }
 
-      const txb = new Transaction();
-      await client.fastRouterSwap({
-        routers: routers.routes,
-        byAmountIn: true,
-        txb: txb,
-        slippage: slippage,
-      });
+      const amountIn = new BN(amount * 10 ** fromCoin.decimal);
+      log.info(`You will swap ${amount} ${fromCoin.name} to ${toCoin.name}`);
 
-      txb.setSender(address);
-      const bytes = await txb.build({ client: new SuiClient({ url: rpc }) });
-      log.debug("transaction bytes", Buffer.from(bytes).toString("hex"));
+      try {
+        const routers = await client.findRouters({
+          from: fromCoin.packageAddress,
+          target: toCoin.packageAddress,
+          amount: amountIn,
+          byAmountIn: true,
+        });
 
-      log.info("let's execute the transaction");
+        if (!routers) {
+          log.error("No routers found");
+          return;
+        }
 
-      const result = await client.signAndExecuteTransaction(txb, getSigner());
+        console.table([
+          {
+            direction: "from",
+            coionName: fromCoin.name,
+            amountIn: routers.amountIn.toString(),
+            decimal: fromCoin.decimal,
+            floatAmount: routers.amountIn.toNumber() / 10 ** fromCoin.decimal,
+          },
+          {
+            direction: "to",
+            coionName: toCoin.name,
+            amountIn: routers.amountOut.toString(),
+            decimal: toCoin.decimal,
+            floatAmount: routers.amountOut.toNumber() / 10 ** toCoin.decimal,
+          },
+        ]);
 
-      log.info("transaction %s ", transactionLink(result.digest));
-    } catch (error) {
-      log.error(error);
+        if (price > 0) {
+          const expectAmountOut = Number(price * amount);
+          log.info(`expectAmountOut: ${expectAmountOut}`);
+          log.info(
+            `routers.amountOut: ${
+              routers.amountOut.toNumber() / 10 ** toCoin.decimal
+            }`
+          );
+          log.info(
+            `router.price: ${
+              routers.amountOut.toNumber() /
+              10 ** toCoin.decimal /
+              (routers.amountIn.toNumber() / 10 ** fromCoin.decimal)
+            }`
+          );
+          log.info(`expect price: ${price}`);
+          if (
+            expectAmountOut >
+            routers.amountOut.toNumber() / 10 ** toCoin.decimal
+          ) {
+            log.error(
+              "Limit Price is too high, please change the limit price or try again"
+            );
+            return;
+          }
+        } else if (price < 0) {
+          const expectAmountIn = Number(price * amount * 10 ** toCoin.decimal);
+          if (expectAmountIn > routers.amountIn.toNumber()) {
+            log.error("Current Price is too low, please try again");
+            return;
+          }
+        }
+
+        for (const router of routers.routes) {
+          displayRouter(router);
+        }
+
+        const txb = new Transaction();
+        await client.fastRouterSwap({
+          routers: routers.routes,
+          byAmountIn: true,
+          txb: txb,
+          slippage: slippage,
+        });
+
+        txb.setSender(address);
+        const bytes = await txb.build({ client: new SuiClient({ url: rpc }) });
+        log.debug("transaction bytes", Buffer.from(bytes).toString("hex"));
+
+        if (execute) {
+          log.info("let's execute the transaction");
+          const result = await client.signAndExecuteTransaction(
+            txb,
+            getSigner()
+          );
+          log.info("transaction %s ", transactionLink(result.digest));
+        } else {
+        }
+      } catch (error) {
+        log.error(error);
+      }
     }
-  });
+  );
 
 program
   .command("price")
@@ -191,4 +282,17 @@ program
     }
   });
 
-program.parse(process.argv);
+program
+  .command("positions")
+  .description("Get positions")
+  .action(async () => {
+    const positions = await getPositions();
+    log.info(JSON.stringify(positions, null, 2));
+  });
+
+const run = async () => {
+  ensureStoragePath();
+  program.parse(process.argv);
+};
+
+run();

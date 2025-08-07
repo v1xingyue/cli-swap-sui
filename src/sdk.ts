@@ -7,21 +7,14 @@ import {
   Path,
   Router,
 } from "@cetusprotocol/aggregator-sdk";
-import path from "path";
 import { supportCoins, aggregatorURL } from "./config";
+import { getKeysJsonFilePath } from "./storage";
+import log from "./log";
 
 interface Keys {
   address: string;
   privateKey: string;
 }
-
-export const getHomePath = () => {
-  return process.env.HOME || ".";
-};
-
-export const getKeysJsonFilePath = () => {
-  return path.join(getHomePath(), ".cli-swap-sui.keys.json");
-};
 
 const keysJsonFile = getKeysJsonFilePath();
 
@@ -60,7 +53,7 @@ export const getBalance = async (address: string) => {
 
 export const initKeypair = async () => {
   if (fs.existsSync(keysJsonFile)) {
-    console.log(`${keysJsonFile} already exists`);
+    log.info(`${keysJsonFile} already exists`);
     return;
   }
 
@@ -112,11 +105,11 @@ export const getCoinMetadata = async (coinType: string) => {
 };
 
 export const displayRouter = (router: Router) => {
-  console.log("--------------------------------");
-  console.log(router.path.map((p: Path) => p.provider).join(" -> "));
-  console.log(`Input : ${router.amountIn.toString()}`);
-  console.log(`Output : ${router.amountOut.toString()}`);
-  console.log(`Initial Price : ${router.initialPrice.toString()}`);
+  log.debug("--------------------------------");
+  log.debug(router.path.map((p: Path) => p.provider).join(" -> "));
+  log.debug(`Input : ${router.amountIn.toString()}`);
+  log.debug(`Output : ${router.amountOut.toString()}`);
+  log.debug(`Initial Price : ${router.initialPrice.toString()}`);
 };
 
 export const getSigner = (): Ed25519Keypair => {
