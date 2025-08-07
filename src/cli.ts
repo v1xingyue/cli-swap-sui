@@ -14,6 +14,7 @@ import {
   getDecimal,
   getCoinName,
   sleep,
+  getZeroCoins,
 } from "./sdk";
 import { getCetusPrice, getCetusPriceBySymbol, getPositions } from "./cetus";
 import log from "./log";
@@ -100,6 +101,42 @@ program
   .description("Init .env")
   .action(async () => {
     await initKeypair();
+  });
+
+program
+  .command("clean-zero")
+  .description("clean zero balance coins")
+  .action(async () => {
+    const client = await getAggregatorClient(getAddress());
+    const address = getAddress();
+    const balances = await getBalance(address);
+    const zeroBalanceCoins = balances.filter(
+      (balance) => balance.totalBalance === "0"
+    );
+    log.info(`zero balance coins: ${zeroBalanceCoins.length}`);
+
+    const txb = new Transaction();
+    txb.setSender(address);
+
+    for (const balance of zeroBalanceCoins) {
+      log.info(`clean ${balance.coinType}`);
+      const zeroCoins = await getZeroCoins(address, balance.coinType);
+      log.info(`zero coins: ${zeroCoins.data.length}`);
+      for (let i = 0; i < zeroCoins.data.length; i++) {
+        const coinData = zeroCoins.data[i].data as any;
+        console.log(coinData.objectId);
+        txb.moveCall({
+          target: `0x2::coin::destroy_zero`,
+          typeArguments: [balance.coinType],
+          arguments: [txb.object(coinData.objectId)],
+        });
+      }
+    }
+
+    const signer = getSigner();
+    const result = await client.signAndExecuteTransaction(txb, signer);
+    log.info(`transaction %s `, transactionLink(result.digest));
+    log.info(`transaction link : ${transactionLink(result.digest)}`);
   });
 
 program

@@ -42,6 +42,24 @@ export const getSuiClient = () => {
   });
 };
 
+export const getZeroCoins = async (address: string, coinType: string) => {
+  const client = getSuiClient();
+  const coins = await client.getOwnedObjects({
+    owner: address,
+    filter: {
+      MatchAll: [
+        {
+          StructType: `0x2::coin::Coin<${coinType}>`,
+        },
+      ],
+    },
+    options: {
+      showContent: true,
+    },
+  });
+  return coins;
+};
+
 export const getBalance = async (address: string) => {
   const client = getSuiClient();
 
