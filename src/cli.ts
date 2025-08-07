@@ -42,6 +42,11 @@ program
     for (const balance of balances) {
       log.debug("--------------------------------");
       log.debug("balance", balance);
+
+      if (balance.totalBalance === "0") {
+        continue;
+      }
+
       const decimal = getDecimal(balance.coinType);
       const coinName = getCoinName(balance.coinType);
       if (!coinName) {
