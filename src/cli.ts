@@ -22,6 +22,7 @@ import { SuiClient } from "@mysten/sui/client";
 import { supportCoins } from "./config";
 import { ensureStoragePath } from "./storage";
 import BN from "bn.js";
+import { ArbitrageBot, createDefaultArbitrageConfig } from "./arbitrage";
 
 const program = new commander.Command();
 program.version("1.0.0");
@@ -155,6 +156,11 @@ program
   .option("-e, --execute ", "execute the transaction", false)
   .option("-l, --loop <loop> ", "loop times", "1")
   .option("-w, --wait <wait> ", "wait time as milliseconds", "1000")
+  .option(
+    "-d, --diff <diff> ",
+    "diff price will change when loop 30 times",
+    "0"
+  )
   .action(
     async ({
       amount,
@@ -166,6 +172,7 @@ program
       price,
       loop,
       wait,
+      diff,
     }: {
       amount: number;
       from: string;
@@ -176,6 +183,7 @@ program
       price: number;
       loop: number;
       wait: number;
+      diff: number;
     }) => {
       if (verbose) {
         log.level = "debug";
@@ -203,6 +211,11 @@ program
 
       for (let i = 0; i < loop; i++) {
         try {
+          if (diff % 30 === 0) {
+            price = price + diff;
+            log.info(`change price to : ${price}`);
+          }
+
           const routers = await client.findRouters({
             from: fromCoin.packageAddress,
             target: toCoin.packageAddress,
@@ -334,12 +347,98 @@ program
   });
 
 program
-  .command("positions")
-  .description("Get positions")
-  .action(async () => {
-    const positions = await getPositions();
-    log.info(JSON.stringify(positions, null, 2));
-  });
+  .command("arbitrage")
+  .description("Start arbitrage bot")
+  .option("-c, --config <file>", "config file path (JSON format)")
+  .option("-m, --min-profit <percentage>", "minimum profit percentage", "0.5")
+  .option("-a, --max-amount <amount>", "maximum trade amount in USDC", "100")
+  .option("-s, --slippage <slippage>", "maximum slippage", "0.01")
+  .option("-i, --interval <ms>", "check interval in milliseconds", "5000")
+  .option(
+    "-p, --pairs <pairs>",
+    "trading pairs (comma separated)",
+    "SUI_USDC,WAL_USDC,IKA_USDC"
+  )
+  .option("-e, --execute", "execute trades (default: simulation only)", false)
+  .action(
+    async ({
+      config: configFile,
+      minProfit,
+      maxAmount,
+      slippage,
+      interval,
+      pairs,
+      execute,
+    }) => {
+      let config: any = {};
+
+      // 如果提供了配置文件，先读取配置文件
+      if (configFile) {
+        try {
+          const fs = await import("fs");
+          const path = await import("path");
+
+          const configPath = path.resolve(configFile);
+          if (!fs.existsSync(configPath)) {
+            log.error(`Config file not found: ${configPath}`);
+            return;
+          }
+
+          const configContent = fs.readFileSync(configPath, "utf8");
+          config = JSON.parse(configContent);
+          log.info(`Loaded config from: ${configPath}`);
+        } catch (error) {
+          log.error(`Failed to load config file: ${error}`);
+          return;
+        }
+      }
+
+      // 命令行参数会覆盖配置文件中的设置
+      if (minProfit !== undefined)
+        config.minProfitPercentage = parseFloat(minProfit);
+      if (maxAmount !== undefined) config.maxAmount = parseFloat(maxAmount);
+      if (slippage !== undefined) config.maxSlippage = parseFloat(slippage);
+      if (interval !== undefined) config.checkInterval = parseInt(interval);
+      if (pairs !== undefined)
+        config.enabledPairs = pairs.split(",").map((p: string) => p.trim());
+
+      // 设置默认值
+      if (!config.minAmount) config.minAmount = 10;
+      if (!config.maxRetries) config.maxRetries = 3;
+
+      log.info("Starting arbitrage bot with config:", config);
+
+      if (!execute) {
+        log.warn(
+          "Running in simulation mode. Use --execute to enable real trading."
+        );
+      }
+
+      try {
+        const defaultConfig = createDefaultArbitrageConfig();
+        const finalConfig = { ...defaultConfig, ...config };
+
+        const bot = new ArbitrageBot(finalConfig);
+
+        // 设置优雅退出
+        process.on("SIGINT", () => {
+          log.info("Received SIGINT, stopping arbitrage bot...");
+          bot.stop();
+          process.exit(0);
+        });
+
+        process.on("SIGTERM", () => {
+          log.info("Received SIGTERM, stopping arbitrage bot...");
+          bot.stop();
+          process.exit(0);
+        });
+
+        await bot.start();
+      } catch (error) {
+        log.error("Failed to start arbitrage bot:", error);
+      }
+    }
+  );
 
 const run = async () => {
   ensureStoragePath();

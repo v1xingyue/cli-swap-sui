@@ -1,0 +1,11 @@
+{
+  "minProfitPercentage": 0.5,
+  "maxAmount": 100,
+  "minAmount": 10,
+  "maxSlippage": 0.01,
+  "checkInterval": 5000,
+  "maxRetries": 3,
+  "enabledPairs": ["SUI_USDC", "WAL_USDC", "IKA_USDC"],
+  "description": "套利机器人配置文件示例",
+  "_comment": "使用方式: pnpm cli arbitrage --config arbitrage-config.json"
+}

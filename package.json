@@ -1,6 +1,6 @@
 {
-  "name": "myswap",
-  "version": "1.0.7",
+  "name": "sswap",
+  "version": "1.0.8",
   "main": "dist/cli.js",
   "bin": {
     "cli-swap-sui": "dist/cli.js"
@@ -9,7 +9,10 @@
     "dev": "ts-node-dev --transpile-only src/cli.ts",
     "build": "tsc",
     "hello": "ts-node src/hello.ts",
-    "example:cetus": "ts-node src/example-cetus-price.ts"
+    "example:cetus": "ts-node src/example-cetus-price.ts",
+    "cli": "ts-node src/cli.ts",
+    "test:arbitrage": "ts-node src/test-arbitrage.ts",
+    "arbitrage": "ts-node src/cli.ts arbitrage"
   },
   "keywords": [
     "cli",
