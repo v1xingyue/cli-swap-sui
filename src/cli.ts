@@ -13,6 +13,7 @@ import {
   transactionLink,
   getDecimal,
   getCoinName,
+  sleep,
 } from "./sdk";
 import { getCetusPrice, getCetusPriceBySymbol, getPositions } from "./cetus";
 import log from "./log";
@@ -210,6 +211,7 @@ program
               log.error(
                 "Limit Price is too high, please change the limit price or try again"
               );
+              await sleep(1000);
               continue;
             }
           }

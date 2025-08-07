@@ -121,3 +121,7 @@ export const getSigner = (): Ed25519Keypair => {
 export const transactionLink = (txHash: string) => {
   return `https://suiscan.xyz/tx/${txHash}`;
 };
+
+export const sleep = (ms: number) => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
