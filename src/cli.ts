@@ -110,7 +110,7 @@ program
   )
   .option("-s, --slippage <slippage>", "slippage", "0.01")
   .option("-e, --execute ", "execute the transaction", false)
-  .option("-l, --loop <loop> ", "loop times", 1)
+  .option("-l, --loop <loop> ", "loop times", "1")
   .action(
     async ({
       amount,
